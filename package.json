@@ -4,7 +4,7 @@
   "description": "task execution system",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha ./test/"
   },
   "repository": {
     "type": "git",
@@ -18,13 +18,16 @@
   },
   "homepage": "https://github.com/leshy/tasks#readme",
   "dependencies": {
+    "abstractman": "git://github.com/leshy/abstractman.git",
+    "autoIntex": "git://github.com/leshy/autoIntex.git",
+    "backbone4000": "git://github.com/leshy/backbone4000.git",
     "bluebird": "^3.5.0",
     "colors": "^1.1.2",
     "introspect": "0.0.3",
-    "backbone4000": "git://github.com/leshy/backbone4000.git",
-    "abstractman": "git://github.com/leshy/abstractman.git",
-    "autoIntex": "git://github.com/leshy/autoIntex.git",
     "leshdash": "git://github.com/leshy/leshdash.git",
     "pretty-hrtime": "^1.0.3"
+  },
+  "devDependencies": {
+    "mocha": "^3.4.2"
   }
 }

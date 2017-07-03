@@ -22,6 +22,41 @@ require! {
 # figure out how to get task execution progress info, not just a promise <3
 # 
 
+export WorkMan = Backbone.extend4000 do
+  initialize: (cb) ->
+    cb!
+    sails.on [ 'lifted' ], ~>
+      @awakeTasks!
+      setInterval (~> @checkSchedule!), 30000
+
+  awakeTasks: ->
+    sails.l "task scheduler running"
+
+    p.props do
+      run: sails.models.task.find({ state: 'run'})
+      wait: sails.models.task.find({ state: 'wait', start: { '<=': new Date() } })
+      waitLater: sails.models.task.find({ state: 'wait', start: { '>': new Date() } })
+
+    .then ({ run, wait, waitLater }) ~> 
+      sails.l "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
+      if run.length then each run, (.exec!)
+      if wait.length then each wait, (.exec!)
+
+  exec: (name, args={}) ->
+    Task.create name: name, args: args
+    .then (task) -> task.exec()
+
+  schedule: (time, name, args={}) ->
+    Task.create name: name, args: args, start: time, state: 'wait'
+    .then -> true
+
+  checkSchedule: ->
+    sails.models.task.find({ state: 'wait', start: { '<=': new Date() } })
+    .then (tasks) -> each tasks, (.exec!)
+
+export Store = Backbone.extend4000 do
+  true
+
 export Runtime = GraphNode.extend4000 do
   plugs:
     tasks: { singular: 'task' }
@@ -29,7 +64,8 @@ export Runtime = GraphNode.extend4000 do
   initialize: ({ store }) ->
     @store = store    
     @args = store.args or {}
-    @logger = sails.logger.child { tags: { task: store.id, module: "task" } }
+    
+    @logger = @logger.child { tags: { task: store.id, module: "task" } }
     @log = @logger~log
 
   state: (state, endTime) ->
@@ -200,20 +236,22 @@ TaskDef = DirectedGraphNode.extend4000 do
     @find targetName
     .then ~> sails.hooks.taskscheduler.schedule time, targetName, args
 
-# This goes through folders recursively and require everything inside, building a dictionary
-# check: https://github.com/leshy/autoIndex
+export init = (dir) -> 
+  # This goes through folders recursively and require everything inside, building a dictionary
+  # check: https://github.com/leshy/autoIndex
 
-# should assign this to global within the hook, not here
-sails.tasks = tasks = autoIndex path.join(__dirname, 'tasks'), {},
-  # some preprocessing on task definitions, adding fullname & name and extending original taskDef model
-  (data, folder) ->
-    mapValues data, (val, key) ->
-      switch val@@
-        | Object =>
-          TaskDef.extend4000 val <<< do
-            name: key
-            folder: folder
-            fullName: path.join folder.join('/'), key
-            
-        | otherwise => val
-        
+  new WorkMan do
+    tasks: autoIndex do
+      dir, {},
+      # some preprocessing on task definitions, adding fullname & name and extending original taskDef model
+      (data, folder) ->
+        mapValues data, (val, key) ->
+          switch val@@
+            | Object =>
+              TaskDef.extend4000 val <<< do
+                name: key
+                folder: folder
+                fullName: path.join folder.join('/'), key
+
+            | otherwise => val
+
