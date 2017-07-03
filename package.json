@@ -1,5 +1,5 @@
 {
-  "name": "tasks",
+  "name": "workman",
   "version": "1.0.0",
   "description": "task execution system",
   "main": "index.js",
