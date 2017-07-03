@@ -1,0 +1,30 @@
+{
+  "name": "tasks",
+  "version": "1.0.0",
+  "description": "task execution system",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leshy/workman.git"
+  },
+  "keywords": [],
+  "author": "lesh <lesh@sysphere.org> (http://lesh.sysphere.org)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leshy/tasks/issues"
+  },
+  "homepage": "https://github.com/leshy/tasks#readme",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "colors": "^1.1.2",
+    "introspect": "0.0.3",
+    "backbone4000": "git://github.com/leshy/backbone4000.git",
+    "abstractman": "git://github.com/leshy/abstractman.git",
+    "autoIntex": "git://github.com/leshy/autoIntex.git",
+    "leshdash": "git://github.com/leshy/leshdash.git",
+    "pretty-hrtime": "^1.0.3"
+  }
+}
