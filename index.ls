@@ -10,6 +10,7 @@ require! {
   path
   'pretty-hrtime'
   abstractman: { DirectedGraphNode, GraphNode }
+#  'backbone-mongo'
 }
 
 #
@@ -21,41 +22,44 @@ require! {
 # 
 # figure out how to get task execution progress info, not just a promise <3
 # 
-
-export WorkMan = Backbone.extend4000 do
-  initialize: (cb) ->
-    cb!
-    sails.on [ 'lifted' ], ~>
-      @awakeTasks!
-      setInterval (~> @checkSchedule!), 30000
+  
+export Task = Backbone.Model.extend4000 do
+  initialize: ->
+    console.log 'task init'
+  # urlRoot: 'mongodb://localhost:27017/task/task'
+  # schema:
+  #   state: [ indexed: true ]
+      
+export Taskx = Backbone.Model.extend4000 do
+#  initialize: (cb) ->
+#    cb!
+#    @awakeTasks!
+#    setInterval (~> @checkSchedule!), 30000
 
   awakeTasks: ->
-    sails.l "task scheduler running"
+    @log "task scheduler running"
 
     p.props do
-      run: sails.models.task.find({ state: 'run'})
-      wait: sails.models.task.find({ state: 'wait', start: { '<=': new Date() } })
-      waitLater: sails.models.task.find({ state: 'wait', start: { '>': new Date() } })
+      run: @store.find({ state: 'run'})
+      wait: @store.find({ state: 'wait', start: { '<=': new Date() } })
+      waitLater: @store.find({ state: 'wait', start: { '>': new Date() } })
 
     .then ({ run, wait, waitLater }) ~> 
-      sails.l "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
+      @log "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
       if run.length then each run, (.exec!)
       if wait.length then each wait, (.exec!)
 
   exec: (name, args={}) ->
-    Task.create name: name, args: args
+    @store.create name: name, args: args
     .then (task) -> task.exec()
 
   schedule: (time, name, args={}) ->
-    Task.create name: name, args: args, start: time, state: 'wait'
+    @store.create name: name, args: args, start: time, state: 'wait'
     .then -> true
 
   checkSchedule: ->
-    sails.models.task.find({ state: 'wait', start: { '<=': new Date() } })
+    @store.find({ state: 'wait', start: { '<=': new Date() } })
     .then (tasks) -> each tasks, (.exec!)
-
-export Store = Backbone.extend4000 do
-  true
 
 export Runtime = GraphNode.extend4000 do
   plugs:
@@ -82,7 +86,6 @@ export Runtime = GraphNode.extend4000 do
 
     @state 'run'
     .then ~>
-      
       @execTask @store.name
 
       .then ~>

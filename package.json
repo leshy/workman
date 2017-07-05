@@ -20,6 +20,7 @@
   "dependencies": {
     "abstractman": "git://github.com/leshy/abstractman.git",
     "autoIntex": "git://github.com/leshy/autoIntex.git",
+    "backbone-mongo": "^0.6.10",
     "backbone4000": "git://github.com/leshy/backbone4000.git",
     "bluebird": "^3.5.0",
     "colors": "^1.1.2",
@@ -28,6 +29,7 @@
     "pretty-hrtime": "^1.0.3"
   },
   "devDependencies": {
+    "livescript": "^1.5.0",
     "mocha": "^3.4.2"
   }
 }
