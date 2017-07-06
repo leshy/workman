@@ -1,4 +1,5 @@
 require! {
+  abstractman: { DirectedGraphNode, GraphNode }
   colors
   bluebird: p
   introspect
@@ -9,28 +10,22 @@ require! {
   util
   path
   'pretty-hrtime'
-  abstractman: { DirectedGraphNode, GraphNode }
-#  'backbone-mongo'
 }
 
 #
-# Runtime is instantiated when Task waterline model wants to execute itself
-# deals with queueing, task state recovery, saving to db, etc
+# runtime deals with queueing, task state recovery, saving to db, etc
 # this code is not in Task model in order to avoid poluting the store with runtime variables
 #
 # omg check this - if a task writes to transient data, its implicitly marked as a transient task?
 # 
 # figure out how to get task execution progress info, not just a promise <3
 # 
-  
-export Task = Backbone.Model.extend4000 do
-  initialize: ->
-    console.log 'task init'
-  # urlRoot: 'mongodb://localhost:27017/task/task'
-  # schema:
-  #   state: [ indexed: true ]
+
+#
+# ribcage_workman ties this into ribcage_mongo..
+#
       
-export Taskx = Backbone.Model.extend4000 do
+export WorkMan = Backbone.Collection.extend4000 do
 #  initialize: (cb) ->
 #    cb!
 #    @awakeTasks!
@@ -61,7 +56,11 @@ export Taskx = Backbone.Model.extend4000 do
     @store.find({ state: 'wait', start: { '<=': new Date() } })
     .then (tasks) -> each tasks, (.exec!)
 
-export Runtime = GraphNode.extend4000 do
+
+export Task = GraphNode.extend4000 do
+  name: 'task'
+  model: Task
+  
   plugs:
     tasks: { singular: 'task' }
 
