@@ -204,18 +204,29 @@ TaskDef = DirectedGraphNode.extend4000 do
 
 
 export TaskCollection = Backbone.Collection.extend4000 do
-  name: 'tasl'
+  name: 'task'
   model: Task
+  
+export lego = Backbone.Model.extend4000 do
+  requires: <[ logger mongo ]>
+
+  init: (callback) ->
+    @env.workman = workman = new WorkMan()
+
+    settings =
+      {
+        dir: 'tasks'
+        sync: @env.mongo.sync
+        logger: @env.logger.child tags: { module: 'workman' }
+      } <<< @settings
+
+    if head settings.dir isnt '/' then settings.dir = path.join @env.root, settings.dir
+
+    workman.init settings
+    callback()
 
 export WorkMan = Backbone.Model.extend4000 do
-
-  init: ({ initOpts }) ->
-
-    defOpts = do
-      dir: void
-      sync: voud
-
-    opts = defOpts <<< initOpts
+  init: (opts) ->
     
     @tasks = autoIndex do
       opts.dir, {},
@@ -235,12 +246,10 @@ export WorkMan = Backbone.Model.extend4000 do
     # local collection and models
     @Task = Task.extend4000 workMan: @
     @TaskCollection = TaskCollection.extend4000 model: @Task, workMan: @
-    
-    @TaskCollection::sync = @TaskSync::sync = opts.sync name: 'task', model: @Task
+    @TaskCollection::sync = @Task::sync = opts.sync collectionName: 'task', modelConstructor: @Task
     
     @running = new @TaskCollection()
     @wait = new @TaskCollection()
-    
     
   awakeTasks: ->
     @log "task scheduler running"

@@ -19,7 +19,7 @@
   "homepage": "https://github.com/leshy/tasks#readme",
   "dependencies": {
     "abstractman": "git://github.com/leshy/abstractman.git",
-    "autoIntex": "git://github.com/leshy/autoIntex.git",
+    "autoIndex": "git://github.com/leshy/autoIndex.git",
     "backbone-mongo": "^0.6.10",
     "backbone4000": "git://github.com/leshy/backbone4000.git",
     "bluebird": "^3.5.0",
