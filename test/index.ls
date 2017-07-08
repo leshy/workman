@@ -32,3 +32,19 @@ describe 'root', ->
       console.log env.workman.tasks
       resolve true
 
+
+  specify 'run non existant task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/bla', {}
+    .then -> reject new Error "non existant task shouldn't have passed"
+    .catch -> 'fail', resolve true
+    
+  specify 'success task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/success', {}
+    .then -> resolve true
+    .catch -> reject new Error "non existant task shouldn't have passed"
+
+
+  specify 'fail task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/fail', {}
+    .then -> reject new Error "fail task shouldn't have passed"
+    .catch -> resolve true

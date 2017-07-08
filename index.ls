@@ -32,34 +32,35 @@ export Task = GraphNode.extend4000 do
   plugs:
     tasks: { singular: 'task' }
 
-  initialize: ({ store }) ->
-    @store = store    
-    @args = store.args or {}
-    @logger = @logger.child { tags: { task: store.id, module: "task" } }
-    @log = @logger~log
-
+  initialize: ({ args, name }) ->
+    @args = args
+    @name = name
+  
   state: (state, endTime) ->
-    @store.state = state
+    @set state: state
     @save()
     .then ~> new p (resolve,reject) ~>
-      if not endTime? then @log "task #{@store.name} changed state to #{state}", {}, { name: @store.name, state: state }
-      else @log "task #{@store.name} changed state to #{state} after #{prettyHrtime endTime}", { time: endTime }, { name: @store.name, state: state }
+      if not endTime? then @log "task #{@name} changed state to #{state}", {}, { name: @name, state: state }
+      else @log "task #{@name} changed state to #{state} after #{prettyHrtime endTime}", { time: endTime }, { name: @name, state: state }
       resolve!
   
   exec: -> new p (resolve,reject) ~> 
+    @logger = @workman.logger.child { tags: { task: @get('id'), module: "task" } }
+    @log = @logger~log
+    
     startTime = process.hrtime()
     endTime = -> process.hrtime startTime
 
     @state 'run'
     .then ~>
-      @execTask @store.name
+      @execTask @name
 
       .then ~>
         @state 'ok', endTime()
         resolve it
 
       .catch ~>
-        @store.error = do
+        @set error: do
           name: String it
           stack: it.stack
           
@@ -75,7 +76,7 @@ export Task = GraphNode.extend4000 do
       logger: (logger or @logger)
       args: (args)
 
-    cls = jsonQuery fullName, tasks, '/'
+    cls = jsonQuery fullName, @workman.tasks, '/'
     if cls?@@ isnt Function then return new p (resolve,reject) ~> reject new Error "Task named #{ fullName } not found"
       
     task = new cls opts
@@ -90,16 +91,16 @@ export Task = GraphNode.extend4000 do
       if args then return isEqual task.get('args'), args
       else return true
 
-  save: ->
-    if @store.state isnt 'ok'
-      @store.data = do
-        tasks: @tasks.map (.serialize!) |> cremove identity
-        permanent: @permanent
-    else
-      # we don't need the data if task finished
-      @store.data = {}
+  # save: ->
+  #   if @get('state') isnt 'ok'
+  #     @set data: do
+  #       tasks: @tasks.map (.serialize!) |> cremove identity
+  #       permanent: @permanent
+  #   else
+  #     # we don't need the data if task finished
+  #     @set data: {}
       
-    @store.save()
+  #   super ...
 
 TaskDef = DirectedGraphNode.extend4000 do
   # inheritance customization (see backbone4000 - or don't, its complicated)
@@ -246,46 +247,50 @@ export WorkMan = Backbone.Model.extend4000 do
 
     @log "loaded tasks", {}, 'init','ok'
     # local collection and models
-    @Task = Task.extend4000 workMan: @
-    @TaskCollection = TaskCollection.extend4000 model: @Task, workMan: @
+    @Task = Task.extend4000 workman: @
+    @TaskCollection = TaskCollection.extend4000 model: @Task, workman: @
     @TaskCollection::sync = @Task::sync = opts.sync do
       collectionName: 'task'
       modelConstructor: @Task
       collectionConstructor: @TaskCollection
 
-    @running = new @TaskCollection()
-    @wait = new @TaskCollection()
+    @running = new TaskCollection()
     
-    p.props do
-      running: ~> @running.fetch search: { '$or': [ { state: 'running' }, { state: 'wait', start: { '<=': new Date() }} ]}
-      wait: ~> @wait.fetch { state: 'wait', start: { '>': new Date() } }
-    .then ~>
-      @log "#{@running.length} tasks to run now #{@wait.length} tasks to run later", {}, 'init','ok'
+    @awakeTasks()
+
+    # p.props do
+    #   running: ~> @running.fetch search: { '$or': [ { state: 'running' }, { state: 'wait', start: { '<=': new Date() }} ]}
+    #   wait: ~> @wait.fetch { state: 'wait', start: { '>': new Date() } }
+    # .then ~>
+    #   @log "#{@running.length} tasks to run now #{@wait.length} tasks to run later", {}, 'init','ok'
     
   awakeTasks: ->
-    @log "task scheduler running"
+    @log "running"
 
     p.props do
-      run: @store.find state: 'run'
-      wait: @store.find state: 'wait', start: { '<=': new Date() } 
-      waitLater: @store.find state: 'wait', start: { '>': new Date() } 
+      run: new @TaskCollection().fetch search: {  state: 'run' }
+      wait: new @TaskCollection().fetch search: {  state: 'wait', start: { '<=': new Date() }  }
+      waitLater: new @TaskCollection().fetch search: { state: 'wait', start: { '>': new Date() } }
 
     .then ({ run, wait, waitLater }) ~> 
-      @log "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
-      if run.length then each run, (.exec!)
-      if wait.length then each wait, (.exec!)
+      @log "found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
+      # if run.length then each run, (.exec!)
+      # if wait.length then each wait, (.exec!)
 
   exec: (name, args={}) ->
-    @store.create name: name, args: args
-    .then (task) -> task.exec()
-
+    newTask = new @Task name: name, args: args
+    newTask.save!
+    .then (@running~add)
+    .then (.exec!)
+    
   schedule: (time, name, args={}) ->
-    @store.create name: name, args: args, start: time, state: 'wait'
-    .then -> true
+    newTask = new @Task name: name, args: args, start: time, state: 'wait'
+    .save()
 
   checkSchedule: ->
-    @store.find({ state: 'wait', start: { '<=': new Date() } })
-    .then (tasks) -> each tasks, (.exec!)
+    console.log 'check schedule'
+#    @store.find({ state: 'wait', start: { '<=': new Date() } })
+#    .then (tasks) -> each tasks, (.exec!)
 
 
 
