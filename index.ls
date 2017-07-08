@@ -171,9 +171,9 @@ TaskDef = DirectedGraphNode.extend4000 do
     if targetName.indexOf("/") isnt -1
       return if not jsonQuery(targetName, tasks, '/') then notFound() else found(targetName)
 
-    tryPath = (...paths) ->
+    tryPath = (...paths) ~> 
       fullName = path.join.apply path, paths
-      if jsonQuery(fullName, tasks, '/')?@@ is Function then return found fullName
+      if jsonQuery(fullName, @runtime.workman.tasks, '/')?@@ is Function then return found fullName
       else return false
 
     # search through your folder and parent folders

@@ -34,17 +34,31 @@ describe 'root', ->
 
 
   specify 'run non existant task', -> new p (resolve,reject) ~>
-    @env.workman.exec 'index/bla', {}
+    @env.workman.exec 'index/bla', time: 10
     .then -> reject new Error "non existant task shouldn't have passed"
     .catch -> 'fail', resolve true
     
   specify 'success task', -> new p (resolve,reject) ~>
-    @env.workman.exec 'index/success', {}
+    @env.workman.exec 'index/success', time: 10
     .then -> resolve true
-    .catch -> reject new Error "non existant task shouldn't have passed"
-
+    .catch -> reject new Error "err executing"
 
   specify 'fail task', -> new p (resolve,reject) ~>
-    @env.workman.exec 'index/fail', {}
+    @env.workman.exec 'index/fail', time: 10
     .then -> reject new Error "fail task shouldn't have passed"
     .catch -> resolve true
+    
+  specify 'single dep task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/dep', {}
+    .then -> resolve true
+    .catch -> reject new Error "err executing"
+    
+  specify 'implicit dep task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/depImplicit', {}
+    .then -> resolve true
+    .catch -> reject new Error "err executing"
+
+  specify 'dep multi task', -> new p (resolve,reject) ~>
+    @env.workman.exec 'index/depMulti', {}
+    .then -> resolve true
+    .catch -> reject new Error "err executing"
