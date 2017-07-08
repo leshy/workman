@@ -1,4 +1,5 @@
 require! {
+  
   abstractman: { DirectedGraphNode, GraphNode }
   colors
   bluebird: p
@@ -10,6 +11,7 @@ require! {
   util
   path
   'pretty-hrtime'
+  
 }
 
 #
@@ -20,46 +22,12 @@ require! {
 # 
 # figure out how to get task execution progress info, not just a promise <3
 # 
-
 #
 # ribcage_workman ties this into ribcage_mongo..
-#
-      
-export WorkMan = Backbone.Collection.extend4000 do
-#  initialize: (cb) ->
-#    cb!
-#    @awakeTasks!
-#    setInterval (~> @checkSchedule!), 30000
-
-  awakeTasks: ->
-    @log "task scheduler running"
-
-    p.props do
-      run: @store.find({ state: 'run'})
-      wait: @store.find({ state: 'wait', start: { '<=': new Date() } })
-      waitLater: @store.find({ state: 'wait', start: { '>': new Date() } })
-
-    .then ({ run, wait, waitLater }) ~> 
-      @log "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
-      if run.length then each run, (.exec!)
-      if wait.length then each wait, (.exec!)
-
-  exec: (name, args={}) ->
-    @store.create name: name, args: args
-    .then (task) -> task.exec()
-
-  schedule: (time, name, args={}) ->
-    @store.create name: name, args: args, start: time, state: 'wait'
-    .then -> true
-
-  checkSchedule: ->
-    @store.find({ state: 'wait', start: { '<=': new Date() } })
-    .then (tasks) -> each tasks, (.exec!)
-
+#      
 
 export Task = GraphNode.extend4000 do
   name: 'task'
-  model: Task
   
   plugs:
     tasks: { singular: 'task' }
@@ -67,7 +35,6 @@ export Task = GraphNode.extend4000 do
   initialize: ({ store }) ->
     @store = store    
     @args = store.args or {}
-    
     @logger = @logger.child { tags: { task: store.id, module: "task" } }
     @log = @logger~log
 
@@ -102,7 +69,7 @@ export Task = GraphNode.extend4000 do
   execTask: (fullName, args={}, logger) ->
     # check if a task with this name and args is already in our context
     if task = @existingTask(fullName, args) then return task.exec()
-      
+    
     opts = do
       runtime: @
       logger: (logger or @logger)
@@ -118,7 +85,6 @@ export Task = GraphNode.extend4000 do
   
   # find task instance by name & arguments (used by subtasks to find dependencies that are already instantiated)
   existingTask: (fullName, args) ->
-    
     @tasks.find (task) ->
       if task.fullName isnt fullName then return false
       if args then return isEqual task.get('args'), args
@@ -136,10 +102,8 @@ export Task = GraphNode.extend4000 do
     @store.save()
 
 TaskDef = DirectedGraphNode.extend4000 do
-
   # inheritance customization (see backbone4000 - or don't, its complicated)
   # this will merge a retry dictionary that a subclass might define into this current default retry dictionary
-  
   mergers: [ Backbone.metaMerger.mergeDict('retry') ]
   
   initialize: ({ @runtime, logger }) ->
@@ -238,16 +202,27 @@ TaskDef = DirectedGraphNode.extend4000 do
     @find targetName
     .then ~> sails.hooks.taskscheduler.schedule time, targetName, args
 
-export init = (dir) -> 
-  # This goes through folders recursively and require everything inside, building a dictionary
-  # check: https://github.com/leshy/autoIndex
 
-  new WorkMan do
-    tasks: autoIndex do
-      dir, {},
+export TaskCollection = Backbone.Collection.extend4000 do
+  name: 'tasl'
+  model: Task
+
+export WorkMan = Backbone.Model.extend4000 do
+
+  init: ({ initOpts }) ->
+
+    defOpts = do
+      dir: void
+      sync: voud
+
+    opts = defOpts <<< initOpts
+    
+    @tasks = autoIndex do
+      opts.dir, {},
       # some preprocessing on task definitions, adding fullname & name and extending original taskDef model
       (data, folder) ->
         mapValues data, (val, key) ->
+          
           switch val@@
             | Object =>
               TaskDef.extend4000 val <<< do
@@ -256,4 +231,41 @@ export init = (dir) ->
                 fullName: path.join folder.join('/'), key
 
             | otherwise => val
+
+    # local collection and models
+    @Task = Task.extend4000 workMan: @
+    @TaskCollection = TaskCollection.extend4000 model: @Task, workMan: @
+    
+    @TaskCollection::sync = @TaskSync::sync = opts.sync name: 'task', model: @Task
+    
+    @running = new @TaskCollection()
+    @wait = new @TaskCollection()
+    
+    
+  awakeTasks: ->
+    @log "task scheduler running"
+
+    p.props do
+      run: @store.find state: 'run'
+      wait: @store.find state: 'wait', start: { '<=': new Date() } 
+      waitLater: @store.find state: 'wait', start: { '>': new Date() } 
+
+    .then ({ run, wait, waitLater }) ~> 
+      @log "task scheduler found #{run.length} tasks to re-run, #{wait.length} that should be run now and #{waitLater.length} to run at a later time"
+      if run.length then each run, (.exec!)
+      if wait.length then each wait, (.exec!)
+
+  exec: (name, args={}) ->
+    @store.create name: name, args: args
+    .then (task) -> task.exec()
+
+  schedule: (time, name, args={}) ->
+    @store.create name: name, args: args, start: time, state: 'wait'
+    .then -> true
+
+  checkSchedule: ->
+    @store.find({ state: 'wait', start: { '<=': new Date() } })
+    .then (tasks) -> each tasks, (.exec!)
+
+
 

@@ -26,7 +26,7 @@ describe 'root', ->
         name: 'task'
         model: TaskSync
 
-      TaskCollection::sync = TaskSync::sync = env.mongo.sync TaskCollection
+      TaskCollection::sync = TaskSync::sync = env.mongo.sync name: 'task', model: TaskSync
 
       collection = new TaskCollection()
       x = new TaskSync test: 33, args: { bla: 1 }
@@ -44,7 +44,6 @@ describe 'root', ->
               x.destroy()
               .then ->
                 console.log "destroy", it
-
                 resolve!
       
 
