@@ -21,7 +21,6 @@ describe 'root', ->
     
   specify 'init', -> new p (resolve,reject) ~>
     @env.settings = do
-      verboseInit: true
       module:
         mongo:
           name: 'test'
@@ -30,6 +29,6 @@ describe 'root', ->
           dir: 'testTasks'
           
     init @env, (err,env) ->
-      console.log err, env
+      console.log env.workman.tasks
       resolve true
 

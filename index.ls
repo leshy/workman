@@ -202,7 +202,6 @@ TaskDef = DirectedGraphNode.extend4000 do
     @find targetName
     .then ~> sails.hooks.taskscheduler.schedule time, targetName, args
 
-
 export TaskCollection = Backbone.Collection.extend4000 do
   name: 'task'
   model: Task
@@ -220,13 +219,15 @@ export lego = Backbone.Model.extend4000 do
         logger: @env.logger.child tags: { module: 'workman' }
       } <<< @settings
 
-    if head settings.dir isnt '/' then settings.dir = path.join @env.root, settings.dir
-
+    if head(settings.dir) isnt '/' then settings.dir = path.join @env.root, settings.dir
+    
     workman.init settings
     callback()
 
 export WorkMan = Backbone.Model.extend4000 do
   init: (opts) ->
+    @logger = opts.logger
+    @log = @logger~log
     
     @tasks = autoIndex do
       opts.dir, {},
@@ -243,13 +244,23 @@ export WorkMan = Backbone.Model.extend4000 do
 
             | otherwise => val
 
+    @log "loaded tasks", {}, 'init','ok'
     # local collection and models
     @Task = Task.extend4000 workMan: @
     @TaskCollection = TaskCollection.extend4000 model: @Task, workMan: @
-    @TaskCollection::sync = @Task::sync = opts.sync collectionName: 'task', modelConstructor: @Task
-    
+    @TaskCollection::sync = @Task::sync = opts.sync do
+      collectionName: 'task'
+      modelConstructor: @Task
+      collectionConstructor: @TaskCollection
+
     @running = new @TaskCollection()
     @wait = new @TaskCollection()
+    
+    p.props do
+      running: ~> @running.fetch search: { '$or': [ { state: 'running' }, { state: 'wait', start: { '<=': new Date() }} ]}
+      wait: ~> @wait.fetch { state: 'wait', start: { '>': new Date() } }
+    .then ~>
+      @log "#{@running.length} tasks to run now #{@wait.length} tasks to run later", {}, 'init','ok'
     
   awakeTasks: ->
     @log "task scheduler running"
